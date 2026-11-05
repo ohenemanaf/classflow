@@ -16,6 +16,11 @@ export const TOUR_STEPS = [
     title: 'Classes and deadlines',
     body: 'Switch to Deadlines to count down to exams, assignments and projects.',
   },
+  {
+    target: 'example',
+    title: 'Not sure where to start?',
+    body: 'See an example timetable to get a feel for ClassFlow. Nothing in it is saved, and you can exit any time.',
+  },
   { target: 'add', title: 'Add something', body: 'Tap + to add a class. On Deadlines, it adds a deadline.' },
   { target: 'alarms', title: 'Class alarms', body: 'Turn on a chime 15 minutes before each class.' },
   {

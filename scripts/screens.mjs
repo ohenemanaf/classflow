@@ -307,7 +307,10 @@ const visible = async (locator, timeout = 3000) => {
   await page.evaluate(() => localStorage.setItem('gctu_timetable', '[]'));
   await page.evaluate(() => localStorage.removeItem('classflow_tour_done'));
   await page.reload();
-  check('tour skips steps that are not on screen', await visible(page.getByText('1 of 4')));
+  check('tour skips steps that are not on screen', await visible(page.getByText('1 of 5')));
+  await page.getByRole('button', { name: 'Next' }).click();
+  check('new students are pointed to the example', await visible(page.getByRole('heading', { name: 'Not sure where to start?' })));
+  await shot(page, 'tour-example');
   await page.context().close();
 }
 
@@ -348,6 +351,63 @@ const visible = async (locator, timeout = 3000) => {
   await page.reload();
   check('free-day card is shown on a day without classes', await visible(page.getByRole('heading', { name: 'Free day' })));
   await shot(page, 'free-day');
+  await page.context().close();
+}
+
+// Preview mode: sample data in memory only. Real data is never touched.
+{
+  // A new student with nothing yet.
+  const page = await open({ seed: false });
+  await page.evaluate(() => {
+    localStorage.setItem('classflow_profile', JSON.stringify({ name: 'Ama Mensah', program: 'Computer Science L200' }));
+    localStorage.setItem('classflow_tour_done', '1');
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'See an example' }).click();
+  check('preview opens from the empty screen', await visible(page.getByRole('region', { name: 'Current class' })));
+  check('preview banner is shown', await page.getByRole('status', { name: 'Preview mode' }).isVisible());
+  check('preview fills the week', (await page.getByRole('heading', { name: 'Tomorrow', exact: true }).isVisible()) && (await page.getByRole('heading', { name: 'Monday', exact: true }).isVisible()));
+  await shot(page, 'preview-classes', true);
+  const stored = () => page.evaluate(() => ({ c: localStorage.getItem('gctu_timetable'), d: localStorage.getItem('gctu_exams') }));
+  let saved = await stored();
+  check('preview saves nothing', (saved.c === null || saved.c === '[]') && (saved.d === null || saved.d === '[]'));
+  await page.getByRole('button', { name: 'Exit preview' }).click();
+  check('exiting returns to the empty screen', await visible(page.getByRole('button', { name: 'See an example' })));
+  await page.context().close();
+}
+{
+  // A student with a real timetable.
+  const page = await open();
+  const real = await page.evaluate(() => localStorage.getItem('gctu_timetable'));
+  await page.getByRole('button', { name: 'More' }).click();
+  const toggle = page.getByRole('switch', { name: 'Preview with sample data' });
+  check('preview switch starts off', (await toggle.getAttribute('aria-checked')) === 'false');
+  await shot(page, 'settings-preview-switch');
+  await toggle.click();
+  check('switch turns the preview on', await visible(page.getByRole('status', { name: 'Preview mode' })));
+
+  // Edit something in the preview; it must not reach storage.
+  await page.getByRole('button', { name: 'Add class', exact: true }).click();
+  const form = page.getByRole('dialog');
+  await form.getByLabel('Course code').fill('TRY 100');
+  await form.getByLabel('Venue').fill('X1');
+  await form.getByLabel('Course name').fill('Preview Only Class');
+  await form.getByLabel('Lecturer').fill('Dr. Test');
+  await form.getByRole('radio', { name: 'Saturday' }).click();
+  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  check('preview can be played with', await visible(page.getByRole('heading', { name: 'Preview Only Class' })));
+  check('real timetable is untouched during preview', (await page.evaluate(() => localStorage.getItem('gctu_timetable'))) === real);
+
+  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('button', { name: 'Share schedule' }).click();
+  check('sharing is paused during preview', await visible(page.getByText('Exit the preview first')));
+  check('settings stay open after the warning', await page.getByRole('switch', { name: 'Preview with sample data' }).isVisible());
+  await page.getByRole('button', { name: /^Exit the preview first/ }).click(); // tap the message to dismiss it
+  await page.getByRole('switch', { name: 'Preview with sample data' }).click();
+  check('switching off brings the real timetable back', await visible(page.getByRole('button', { name: 'Edit Network Security Fundamentals' })));
+  check('preview edits are gone afterwards', (await page.getByRole('heading', { name: 'Preview Only Class' }).count()) === 0);
+  check('real timetable is still identical', (await page.evaluate(() => localStorage.getItem('gctu_timetable'))) === real);
+  check('banner is gone', (await page.getByRole('status', { name: 'Preview mode' }).count()) === 0);
   await page.context().close();
 }
 

@@ -7,6 +7,7 @@ import {
   unlockAudio,
 } from './lib/alerts.js';
 import { buildCalendar } from './lib/calendar.js';
+import { buildSampleData } from './lib/sample.js';
 import { classesLeftToday, saveSnapshot, toSnapshot } from './widget/core.js';
 import WidgetSheet from './components/WidgetSheet.jsx';
 import { getDueAlerts, localDateString, weekdayName } from './lib/schedule.js';
@@ -23,6 +24,7 @@ import Header from './components/Header.jsx';
 import ImportDialog from './components/ImportDialog.jsx';
 import MoreSheet from './components/MoreSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
+import PreviewBanner from './components/PreviewBanner.jsx';
 import Ambient from './components/Ambient.jsx';
 import CoachMarks from './components/CoachMarks.jsx';
 import Segmented from './components/Segmented.jsx';
@@ -40,8 +42,23 @@ const clearSyncParam = () =>
 
 export default function App() {
   const [profile, setProfile] = useState(readProfile);
-  const [classes, setClasses] = useState(() => readJson(KEYS.classes, []));
-  const [deadlines, setDeadlines] = useState(() => readJson(KEYS.deadlines, []));
+  const [savedClasses, setSavedClasses] = useState(() => readJson(KEYS.classes, []));
+  const [savedDeadlines, setSavedDeadlines] = useState(() => readJson(KEYS.deadlines, []));
+
+  // Preview mode shows a sample timetable held in memory only. Nothing in it is ever saved,
+  // and switching it off brings the student's own data straight back.
+  const [preview, setPreview] = useState(null);
+  const classes = preview ? preview.classes : savedClasses;
+  const deadlines = preview ? preview.deadlines : savedDeadlines;
+  const updater = (key, setSaved) => (next) => {
+    if (!preview) return setSaved(next);
+    return setPreview((current) => ({
+      ...current,
+      [key]: typeof next === 'function' ? next(current[key]) : next,
+    }));
+  };
+  const setClasses = updater('classes', setSavedClasses);
+  const setDeadlines = updater('deadlines', setSavedDeadlines);
   const [tab, setTab] = useState('classes');
   const [alarmsOn, setAlarmsOn] = useState(initialAlarms);
   const [now, setNow] = useState(() => new Date());
@@ -67,14 +84,17 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), duration);
   }, []);
 
-  useEffect(() => writeJson(KEYS.classes, classes), [classes]);
-  useEffect(() => writeJson(KEYS.deadlines, deadlines), [deadlines]);
+  useEffect(() => writeJson(KEYS.classes, savedClasses), [savedClasses]);
+  useEffect(() => writeJson(KEYS.deadlines, savedDeadlines), [savedDeadlines]);
 
   // Keep the home-screen widget's copy in step. Each save replaces the whole copy, so a
   // deleted class or deadline is gone from it immediately; then the widget is told to redraw.
   const widgetSnapshot = useMemo(
-    () => (profile ? toSnapshot({ name: profile.name, classes, deadlines, now: new Date() }) : null),
-    [profile, classes, deadlines],
+    () =>
+      profile
+        ? toSnapshot({ name: profile.name, classes: savedClasses, deadlines: savedDeadlines, now: new Date() })
+        : null,
+    [profile, savedClasses, savedDeadlines],
   );
   useEffect(() => {
     if (!widgetSnapshot || !('indexedDB' in window)) return;
@@ -132,7 +152,8 @@ export default function App() {
   }, [showToast]);
 
   useEffect(() => {
-    for (const alert of getDueAlerts(classes, now)) {
+    // Alarms always follow the student's own timetable, even while previewing the sample.
+    for (const alert of getDueAlerts(savedClasses, now)) {
       if (firedAlerts.current.has(alert.key)) continue;
       firedAlerts.current.add(alert.key);
       const { courseCode, venue } = alert.class;
@@ -151,7 +172,7 @@ export default function App() {
     for (const key of firedAlerts.current) {
       if (!key.includes(today)) firedAlerts.current.delete(key);
     }
-  }, [now, classes, alarmsOn, showToast]);
+  }, [now, savedClasses, alarmsOn, showToast]);
 
   const toggleAlarms = async () => {
     unlockAudio();
@@ -255,6 +276,27 @@ export default function App() {
     });
   };
 
+  const startPreview = () => {
+    setPreview(buildSampleData(new Date()));
+    setTab('classes');
+    closeSheet();
+    window.scrollTo({ top: 0 });
+    showToast('Previewing sample data', 'Look around and try things. Nothing here is saved.', 5000);
+  };
+
+  const endPreview = () => {
+    setPreview(null);
+    window.scrollTo({ top: 0 });
+    showToast('Preview ended', 'You’re back to your own timetable.');
+  };
+
+  // Sharing or exporting the sample would send made-up classes to real people or calendars.
+  const blockedInPreview = () => {
+    if (!preview) return false;
+    showToast('Exit the preview first', 'Sharing and calendar export use your own timetable.');
+    return true;
+  };
+
   // Home-screen shortcuts (long-press the app icon) arrive as ?action=add-class or ?tab=deadlines.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -275,6 +317,7 @@ export default function App() {
   }, []);
 
   const openShare = () => {
+    if (blockedInPreview()) return;
     if (classes.length === 0) {
       showToast('Nothing to share yet', 'Add some classes before sharing your schedule.');
       return;
@@ -284,6 +327,7 @@ export default function App() {
 
   // The phone's calendar can alert offline and with ClassFlow closed, which a web page can't.
   const exportCalendar = () => {
+    if (blockedInPreview()) return;
     const { text, count } = buildCalendar({ classes, deadlines, now: new Date() });
     if (count === 0) {
       showToast('Nothing to add yet', 'Add a class or deadline first.');
@@ -309,7 +353,8 @@ export default function App() {
     localStorage.setItem(KEYS.processedSync, incoming.raw);
     clearSyncParam();
     if (accepted) {
-      setClasses(incoming.timetable.map((c, i) => ({ ...c, id: Date.now() + i })));
+      setPreview(null);
+      setSavedClasses(incoming.timetable.map((c, i) => ({ ...c, id: Date.now() + i })));
       showToast('Schedule imported', `You now have ${incoming.name}'s timetable.`);
     }
     setIncoming(null);
@@ -333,6 +378,7 @@ export default function App() {
   return (
     <div className="mx-auto min-h-dvh max-w-xl pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <Ambient />
+      {preview && <PreviewBanner onExit={endPreview} />}
       <Header
         profile={profile}
         now={now}
@@ -356,6 +402,7 @@ export default function App() {
           classes={classes}
           now={now}
           onAdd={newClass}
+          onSample={startPreview}
           onEdit={(draft) => setSheet({ kind: 'class', draft })}
         />
       ) : (
@@ -412,6 +459,8 @@ export default function App() {
           onShare={openShare}
           onExportCalendar={exportCalendar}
           onWidget={() => setSheet({ kind: 'widget' })}
+          previewing={Boolean(preview)}
+          onTogglePreview={() => (preview ? (closeSheet(), endPreview()) : startPreview())}
           onReplayTour={() => {
             closeSheet();
             setTab('classes');

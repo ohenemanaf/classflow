@@ -76,6 +76,34 @@ export function ActionRow({ icon: Icon, label, destructive = false, ...props }) 
   );
 }
 
+/** A list row with an iOS-style on/off switch. */
+export function SwitchRow({ icon: Icon, label, checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex min-h-12 w-full items-center gap-3 px-4 text-left text-[1.0625rem] transition-colors duration-300 active:bg-fill [@media(hover:hover)]:hover:bg-white/60"
+    >
+      {Icon && <Icon size={20} className="text-tint" />}
+      <span className="flex-1">{label}</span>
+      <span
+        aria-hidden="true"
+        className={`relative h-7.5 w-12.5 shrink-0 rounded-full transition-colors duration-300 ${
+          checked ? 'bg-live/80' : 'bg-fill'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 size-6.5 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            checked ? 'translate-x-5' : ''
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 /** Pick-one chips. `columns` lays them out as an even grid (days of the week). */
 export function ChipGroup({ label, options, value, onChange, labelFor = (o) => o, columns }) {
   const id = useId();

@@ -152,7 +152,7 @@ function ClassCard({ cls, state, isLast, tourTarget, onEdit }) {
   );
 }
 
-function EmptySchedule({ onAdd }) {
+function EmptySchedule({ onAdd, onSample }) {
   return (
     <section className="glass lift relative mx-4 overflow-hidden rounded-[2rem] px-6 py-9 text-center">
       <BookOpen
@@ -164,15 +164,18 @@ function EmptySchedule({ onAdd }) {
       <BookOpen size={48} strokeWidth={1.5} className="relative mx-auto text-tint" />
       <h2 className="mt-4 text-[1.5rem] font-bold tracking-[-0.025em]">No classes yet</h2>
       <p className="mt-1 text-[0.9375rem] text-secondary">Add each class once. ClassFlow counts down to it every week.</p>
-      <Button onClick={onAdd} className="mx-auto mt-5">
-        Add your first class
-      </Button>
+      <div className="relative mt-5 flex flex-col items-center gap-2">
+        <Button onClick={onAdd}>Add your first class</Button>
+        <Button variant="plain" onClick={onSample} data-tour="example">
+          See an example
+        </Button>
+      </div>
     </section>
   );
 }
 
-export default function ClassesView({ classes, now, onAdd, onEdit }) {
-  if (classes.length === 0) return <EmptySchedule onAdd={onAdd} />;
+export default function ClassesView({ classes, now, onAdd, onSample, onEdit }) {
+  if (classes.length === 0) return <EmptySchedule onAdd={onAdd} onSample={onSample} />;
 
   // The week starts from today, so what matters soonest is always at the top.
   const todayIndex = DAYS.indexOf(weekdayName(now));

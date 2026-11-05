@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
-import { CalendarPlus, Compass, LayoutGrid, MessageSquare, Share, Trash2 } from 'lucide-react';
+import { CalendarPlus, Compass, Eye, LayoutGrid, MessageSquare, Share, Trash2 } from 'lucide-react';
 import Sheet from './Sheet.jsx';
-import { ActionRow, Group, TextRow } from './ui.jsx';
+import { ActionRow, Group, SwitchRow, TextRow } from './ui.jsx';
 
 export default function MoreSheet({
   profile,
@@ -10,6 +10,8 @@ export default function MoreSheet({
   onShare,
   onExportCalendar,
   onWidget,
+  previewing,
+  onTogglePreview,
   onReplayTour,
   onFeedback,
   onClear,
@@ -42,6 +44,9 @@ export default function MoreSheet({
             value={form.program}
             onChange={(e) => setForm({ ...form, program: e.target.value })}
           />
+        </Group>
+        <Group footer="See how ClassFlow looks with a full week of classes and deadlines. Your own timetable stays untouched, and nothing from the preview is saved.">
+          <SwitchRow icon={Eye} label="Preview with sample data" checked={previewing} onChange={onTogglePreview} />
         </Group>
         <Group footer="In-app alarms ring only while ClassFlow is open. Add your schedule to your calendar to get reminders even when it's closed or you're offline.">
           <ActionRow icon={CalendarPlus} label="Add to calendar" onClick={onExportCalendar} />
