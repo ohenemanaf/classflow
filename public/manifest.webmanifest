@@ -1,0 +1,46 @@
+{
+  "name": "ClassFlow",
+  "short_name": "ClassFlow",
+  "description": "Your class timetable and deadline countdowns, in your pocket.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#dce6ff",
+  "theme_color": "#dce6ff",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add a class",
+      "short_name": "Add class",
+      "url": "/?action=add-class",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Deadlines",
+      "short_name": "Deadlines",
+      "url": "/?tab=deadlines",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Next class",
+      "short_name": "Next class",
+      "description": "Your current or next class, what comes after it, and your next deadline.",
+      "tag": "classflow-next",
+      "template": "classflow-next",
+      "ms_ac_template": "/widget/template.json",
+      "data": "/widget/data.json",
+      "type": "application/json",
+      "auth": false,
+      "update": 900,
+      "screenshots": [{ "src": "/widget/screenshot.png", "sizes": "600x400", "label": "ClassFlow next-class widget" }],
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

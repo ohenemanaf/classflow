@@ -1,0 +1,242 @@
+@import 'tailwindcss';
+
+@theme inline {
+  /* Manrope everywhere, bundled with the app so it also works offline. */
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+
+  --color-canvas: var(--canvas);
+  --color-label: var(--label);
+  --color-secondary: var(--secondary);
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
+  --color-tint: var(--tint);
+  --color-tint-soft: var(--tint-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-live: var(--live);
+  --color-live-soft: var(--live-soft);
+  --color-tone-bg: var(--tone-bg);
+  --color-tone-chip: var(--tone-chip);
+  --color-tone-ink: var(--tone-ink);
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #f2f2f7;
+  --label: #1d1d1f;
+  --secondary: #6e6e73;
+  --separator: rgba(60, 60, 67, 0.13);
+  --fill: rgba(118, 118, 128, 0.12);
+  --tint: #0066cc;
+  --tint-soft: rgba(0, 122, 255, 0.12);
+  --destructive: #d70015;
+  --destructive-soft: rgba(255, 59, 48, 0.11);
+  --live: #1a7f37;
+  --live-soft: rgba(52, 199, 89, 0.16);
+}
+
+/* Course colours: see-through tints of Apple's system colours, never solid blocks. */
+.tone-0 { --tone-bg: rgba(52, 199, 89, 0.13); --tone-chip: rgba(52, 199, 89, 0.2); --tone-ink: #1b6d34; }
+.tone-1 { --tone-bg: rgba(88, 86, 214, 0.11); --tone-chip: rgba(88, 86, 214, 0.18); --tone-ink: #3e3ba8; }
+.tone-2 { --tone-bg: rgba(255, 149, 0, 0.13); --tone-chip: rgba(255, 149, 0, 0.22); --tone-ink: #8a4f00; }
+.tone-3 { --tone-bg: rgba(0, 122, 255, 0.1); --tone-chip: rgba(0, 122, 255, 0.17); --tone-ink: #00539f; }
+.tone-4 { --tone-bg: rgba(255, 45, 85, 0.1); --tone-chip: rgba(255, 45, 85, 0.17); --tone-ink: #a8133a; }
+.tone-5 { --tone-bg: rgba(142, 142, 147, 0.14); --tone-chip: rgba(142, 142, 147, 0.22); --tone-ink: #3f3f45; }
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--canvas);
+    color: var(--label);
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  summary {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--tint);
+    outline-offset: 2px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Liquid glass: a translucent pane that blurs and brightens what is behind it, with a
+ * bright top edge where light catches it. `glass` is the standard material, `glass-thick`
+ * is for sheets that need to keep text readable over busy content.
+ */
+@utility glass {
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.025),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+@utility glass-thick {
+  background: rgba(255, 255, 255, 0.84);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 -4px 40px rgba(0, 0, 0, 0.1);
+}
+
+/*
+ * Card motion: a gentle lift on hover (only on devices that really hover, so it never sticks
+ * on a phone) and a soft press on touch.
+ */
+@utility lift {
+  transition:
+    transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    background-color 500ms ease,
+    opacity 500ms ease;
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 14px 32px rgba(0, 0, 0, 0.08);
+    }
+  }
+  &:active {
+    transform: scale(0.985);
+  }
+}
+
+/* Buttons, chips and toggles: a small rise on hover and a quick press-in on tap. */
+@utility press {
+  transition:
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 240ms ease,
+    background-color 240ms ease,
+    color 240ms ease;
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    }
+  }
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+/* The open book tucked into card corners slides and tilts when its card is touched. */
+.book-mark {
+  transition:
+    transform 650ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 650ms ease;
+}
+@media (hover: hover) {
+  .lift:hover .book-mark {
+    transform: translate(-12px, -10px) rotate(-10deg) scale(1.08);
+    opacity: 0.16;
+  }
+}
+.lift:active .book-mark {
+  transform: translate(-12px, -10px) rotate(-10deg) scale(1.08);
+  opacity: 0.16;
+}
+
+/* The + button's icon turns a quarter on hover. */
+.fab-icon {
+  transition: transform 400ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (hover: hover) {
+  .fab:hover .fab-icon {
+    transform: rotate(90deg);
+  }
+}
+
+/* Walkthrough: the spotlight glides between features and a soft ring breathes around it. */
+.coach-spotlight {
+  pointer-events: none;
+  transition:
+    top 380ms cubic-bezier(0.32, 0.72, 0, 1),
+    left 380ms cubic-bezier(0.32, 0.72, 0, 1),
+    width 380ms cubic-bezier(0.32, 0.72, 0, 1),
+    height 380ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 380ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes coach-breathe {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+  70%, 100% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
+}
+.coach-ring {
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  animation: coach-breathe 2.2s ease-out infinite;
+}
+.coach-tip {
+  transition:
+    top 380ms cubic-bezier(0.32, 0.72, 0, 1),
+    left 380ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Inputs sit inside grouped glass lists, the way iOS Settings lays out forms. 16px text
+   stops iOS Safari zooming the page when an input is focused. */
+.row-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.875rem;
+  background: transparent;
+  font-size: 16px;
+  color: var(--label);
+  appearance: none;
+}
+.row-input::placeholder {
+  color: var(--secondary);
+  opacity: 0.75;
+}
+.row-input:focus {
+  outline: none;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes alert-in {
+  from { transform: scale(1.08); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes drop-in {
+  from { transform: translateY(-1rem) scale(0.96); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.anim-sheet { animation: sheet-up 380ms cubic-bezier(0.32, 0.72, 0, 1); }
+.anim-alert { animation: alert-in 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+.anim-fade { animation: fade 200ms ease-out; }
+.anim-drop { animation: drop-in 320ms cubic-bezier(0.32, 0.72, 0, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
