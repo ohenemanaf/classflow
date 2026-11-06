@@ -29,7 +29,7 @@ Breaking either of these affects real users:
 
 - **`localStorage` keys** in `src/lib/storage.js` (`gctu_timetable`, `gctu_exams`,
   `classflow_profile`, `campusgrid_profile`, `processed_sync`) must not be renamed.
-  Data is per-site, so existing users keep theirs only if this deploys to the same Netlify site.
+  Data is per-site (per domain), so existing users keep theirs only if the app stays on the same domain.
 - **The `?sync=` format** in `src/lib/sync.js` must keep reading old links, which are already
   shared around. `tests/logic.test.js` covers them using v1's exact encoder.
 
@@ -42,3 +42,9 @@ shortcuts on a long press or right-click. The badge updates while the app is ope
 ## Known limitation
 
 Alarms only fire while the app is open. Alerts with the app closed would need web push and a server.
+
+## Deploying
+
+Hosted on Vercel; `vercel.json` holds the build settings and cache headers. Import the repo at
+vercel.com/new (it picks up the settings), or run `npx vercel --prod` from this folder.
+Hashed files in `/assets/` are cached for a year; `sw.js` is never cached, so updates reach phones.
