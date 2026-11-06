@@ -59,6 +59,24 @@ export function getDayStatus(classes, now) {
   return { type: 'done' };
 }
 
+/** Minute-level duration for places that shouldn't change every second: "1h 12m", "25m". */
+export function shortDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 1) return 'under 1m';
+  const hours = Math.floor(minutes / 60);
+  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+}
+
+export const DEFAULT_TITLE = 'ClassFlow | Smart Schedule';
+
+/** Browser tab title: what's on right now, so desktop users can see it from any tab. */
+export function tabTitle(classes, now) {
+  const status = getDayStatus(classes, now);
+  if (status.type === 'ongoing') return `${shortDuration(status.secondsLeft)} left: ${status.class.courseName}`;
+  if (status.type === 'upcoming') return `${status.class.courseName} in ${shortDuration(status.secondsLeft)}`;
+  return DEFAULT_TITLE;
+}
+
 /** The first class on a later day of the week, for when today has nothing left. */
 export function findNextDayClass(classes, now) {
   const todayIndex = DAYS.indexOf(weekdayName(now));

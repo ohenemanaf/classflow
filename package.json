@@ -20,9 +20,6 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.4",
     "@vitejs/plugin-react": "^6.2.1",
-    "adaptive-expressions": "^4.23.3",
-    "adaptivecards-templating": "^2.3.1",
-    "fake-indexeddb": "^6.2.7",
     "ical.js": "^2.2.1",
     "playwright-core": "^1.64.1",
     "tailwindcss": "^4.3.4",

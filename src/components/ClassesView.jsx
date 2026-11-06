@@ -8,6 +8,7 @@ import {
   toneFor,
   weekdayName,
 } from '../lib/schedule.js';
+import RollingNumber from './RollingNumber.jsx';
 import { Button } from './ui.jsx';
 
 /** Timer-style countdown, like the iOS Clock app: 1:12:48, or 4:05 under an hour. */
@@ -19,7 +20,7 @@ function clock(totalSeconds) {
   return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
 }
 
-function Hero({ classes, now }) {
+function Hero({ classes, now, onCelebrate }) {
   const status = getDayStatus(classes, now);
 
   if (status.class) {
@@ -45,7 +46,7 @@ function Hero({ classes, now }) {
           role="timer"
           aria-label={`${ongoing ? 'Time remaining' : 'Starts in'} ${clock(status.secondsLeft)}`}
         >
-          {clock(status.secondsLeft)}
+          <RollingNumber value={clock(status.secondsLeft)} />
         </p>
         {ongoing && (
           <div
@@ -93,9 +94,20 @@ function Hero({ classes, now }) {
         strokeWidth={1}
         className="book-mark pointer-events-none absolute -right-8 -bottom-10 text-tint opacity-[0.07]"
       />
-      <div className={`relative mx-auto grid size-16 place-items-center rounded-full ${done ? 'bg-live-soft text-live' : 'bg-tint-soft text-tint'}`}>
-        <Icon size={30} strokeWidth={1.75} />
-      </div>
+      {done ? (
+        <button
+          type="button"
+          onClick={onCelebrate}
+          aria-label="Celebrate"
+          className="press relative mx-auto grid size-16 place-items-center rounded-full bg-live-soft text-live"
+        >
+          <Icon size={30} strokeWidth={1.75} />
+        </button>
+      ) : (
+        <div className="relative mx-auto grid size-16 place-items-center rounded-full bg-tint-soft text-tint">
+          <Icon size={30} strokeWidth={1.75} />
+        </div>
+      )}
       <h2 className="relative mt-4 text-[2rem] leading-tight font-bold tracking-[-0.03em]">
         {done ? 'Done for today' : 'Free day'}
       </h2>
@@ -174,7 +186,7 @@ function EmptySchedule({ onAdd, onSample }) {
   );
 }
 
-export default function ClassesView({ classes, now, onAdd, onSample, onEdit }) {
+export default function ClassesView({ classes, now, onAdd, onSample, onEdit, onCelebrate }) {
   if (classes.length === 0) return <EmptySchedule onAdd={onAdd} onSample={onSample} />;
 
   // The week starts from today, so what matters soonest is always at the top.
@@ -195,7 +207,7 @@ export default function ClassesView({ classes, now, onAdd, onSample, onEdit }) {
 
   return (
     <main className="px-4">
-      <Hero classes={classes} now={now} />
+      <Hero classes={classes} now={now} onCelebrate={onCelebrate} />
       {week.map(({ day, offset, list }, weekIndex) => (
         <section key={day} aria-label={day} className="mt-7">
           <h2 className="mb-3 px-1 text-[1.25rem] font-bold tracking-[-0.02em]">{title(day, offset)}</h2>

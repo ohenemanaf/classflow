@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   notificationsSupported,
   playChime,
@@ -8,9 +8,17 @@ import {
 } from './lib/alerts.js';
 import { buildCalendar } from './lib/calendar.js';
 import { buildSampleData } from './lib/sample.js';
-import { classesLeftToday, saveSnapshot, toSnapshot } from './widget/core.js';
-import WidgetSheet from './components/WidgetSheet.jsx';
-import { getDueAlerts, localDateString, weekdayName } from './lib/schedule.js';
+import {
+  classesOn,
+  DEFAULT_TITLE,
+  getDayStatus,
+  getDueAlerts,
+  localDateString,
+  tabTitle,
+  toMinutes,
+  weekdayName,
+} from './lib/schedule.js';
+import Confetti from './components/Confetti.jsx';
 import { KEYS, readJson, readProfile, writeJson } from './lib/storage.js';
 import { decodeSchedule } from './lib/sync.js';
 import { CalendarDays, Flag, Plus } from 'lucide-react';
@@ -67,6 +75,7 @@ export default function App() {
   const [incoming, setIncoming] = useState(null);
   const [toast, setToast] = useState(null);
   const [touring, setTouring] = useState(() => !localStorage.getItem(KEYS.tourDone));
+  const [confetti, setConfetti] = useState(0);
 
   const toastTimer = useRef();
   const firedAlerts = useRef(new Set());
@@ -87,24 +96,37 @@ export default function App() {
   useEffect(() => writeJson(KEYS.classes, savedClasses), [savedClasses]);
   useEffect(() => writeJson(KEYS.deadlines, savedDeadlines), [savedDeadlines]);
 
-  // Keep the home-screen widget's copy in step. Each save replaces the whole copy, so a
-  // deleted class or deadline is gone from it immediately; then the widget is told to redraw.
-  const widgetSnapshot = useMemo(
-    () =>
-      profile
-        ? toSnapshot({ name: profile.name, classes: savedClasses, deadlines: savedDeadlines, now: new Date() })
-        : null,
-    [profile, savedClasses, savedDeadlines],
-  );
+  // Browser tab title shows what's on, so desktop users can see it from any tab.
+  // Minute-level, so it doesn't flicker every second.
+  const pageTitle = profile ? tabTitle(savedClasses, now) : DEFAULT_TITLE;
   useEffect(() => {
-    if (!widgetSnapshot || !('indexedDB' in window)) return;
-    saveSnapshot(widgetSnapshot)
-      .then(() => navigator.serviceWorker?.controller?.postMessage({ type: 'widget-refresh' }))
-      .catch(() => {});
-  }, [widgetSnapshot]);
+    document.title = pageTitle;
+  }, [pageTitle]);
 
-  // App icon badge: classes still to come today (installed apps, where the phone supports it).
-  const leftToday = widgetSnapshot ? classesLeftToday(widgetSnapshot, now) : 0;
+  // Celebrate once a day when the last class is over, even if the app is opened later.
+  const dayType = profile ? getDayStatus(savedClasses, now).type : null;
+  useEffect(() => {
+    if (dayType !== 'done' || preview) return;
+    const today = new Date().toDateString();
+    if (localStorage.getItem(KEYS.celebrated) === today) return;
+    localStorage.setItem(KEYS.celebrated, today);
+    setConfetti((n) => n + 1);
+    showToast('Done for today', 'That was your last class. Nice work.');
+  }, [dayType, preview, showToast]);
+
+  // An earlier version kept a copy of the schedule in IndexedDB for a desktop widget that has
+  // since been removed. Delete that copy from devices that still have it.
+  useEffect(() => {
+    if ('indexedDB' in window) indexedDB.deleteDatabase('classflow-widget');
+  }, []);
+
+  // App icon badge: classes in progress or still to come today, so the icon itself signals
+  // that something is on. Installed apps only, where the device supports badges. Always from
+  // the student's own timetable, never the preview.
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const leftToday = profile
+    ? classesOn(savedClasses, weekdayName(now)).filter((c) => toMinutes(c.endTime) > nowMinutes).length
+    : 0;
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return;
     (leftToday > 0 ? navigator.setAppBadge(leftToday) : navigator.clearAppBadge()).catch(() => {});
@@ -403,6 +425,7 @@ export default function App() {
           now={now}
           onAdd={newClass}
           onSample={startPreview}
+          onCelebrate={() => setConfetti((n) => n + 1)}
           onEdit={(draft) => setSheet({ kind: 'class', draft })}
         />
       ) : (
@@ -445,9 +468,6 @@ export default function App() {
       {sheet?.kind === 'share' && (
         <ShareSheet profile={profile} classes={classes} onToast={showToast} onClose={closeSheet} />
       )}
-      {sheet?.kind === 'widget' && (
-        <WidgetSheet profile={profile} classes={classes} deadlines={deadlines} now={now} onClose={closeSheet} />
-      )}
       {sheet?.kind === 'feedback' && (
         <FeedbackSheet profile={profile} onToast={showToast} onClose={closeSheet} />
       )}
@@ -458,7 +478,6 @@ export default function App() {
           onSaveProfile={saveProfile}
           onShare={openShare}
           onExportCalendar={exportCalendar}
-          onWidget={() => setSheet({ kind: 'widget' })}
           previewing={Boolean(preview)}
           onTogglePreview={() => (preview ? (closeSheet(), endPreview()) : startPreview())}
           onReplayTour={() => {
@@ -493,6 +512,7 @@ export default function App() {
 
       {touring && !sheet && !confirm && !incoming && <CoachMarks onClose={finishTour} />}
 
+      <Confetti burst={confetti} />
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );

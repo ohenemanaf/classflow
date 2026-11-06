@@ -8,6 +8,7 @@ export const KEYS = {
   processedSync: 'processed_sync',
   alarms: 'classflow_alarms',
   tourDone: 'classflow_tour_done',
+  celebrated: 'classflow_celebrated',
 };
 
 export function readJson(key, fallback) {

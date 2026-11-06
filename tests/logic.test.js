@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_TITLE,
+  shortDuration,
+  tabTitle,
   findConflict,
   findNextDayClass,
   formatDuration,
@@ -119,6 +122,27 @@ describe('countdown', () => {
     expect(formatDuration(45)).toBe('45s');
     expect(formatDuration(3605)).toBe('1h 0m 5s');
     expect(formatDuration(90061)).toBe('1d 1h 1m 1s');
+  });
+});
+
+describe('tab title', () => {
+  it('shows the time left in the current class', () => {
+    expect(tabTitle([cls()], at('10:47:12'))).toBe('1h 12m left: Software Engineering');
+  });
+  it('counts down to the next class', () => {
+    expect(tabTitle([cls()], at('09:35:00'))).toBe('Software Engineering in 25m');
+  });
+  it('says "under 1m" in the final seconds', () => {
+    expect(tabTitle([cls()], at('09:59:30'))).toBe('Software Engineering in under 1m');
+  });
+  it('falls back to the app name when nothing is on', () => {
+    expect(tabTitle([cls()], at('13:00'))).toBe(DEFAULT_TITLE);
+    expect(tabTitle([], at('10:00'))).toBe(DEFAULT_TITLE);
+  });
+  it('formats short durations', () => {
+    expect(shortDuration(59)).toBe('under 1m');
+    expect(shortDuration(60)).toBe('1m');
+    expect(shortDuration(3600)).toBe('1h 0m');
   });
 });
 

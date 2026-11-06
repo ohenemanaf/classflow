@@ -33,16 +33,11 @@ Breaking either of these affects real users:
 - **The `?sync=` format** in `src/lib/sync.js` must keep reading old links, which are already
   shared around. `tests/logic.test.js` covers them using v1's exact encoder.
 
-## Home-screen widget
+## App icon
 
-`src/widget/core.js` is shared by the app and the service worker (the build inlines it into
-`dist/sw.js`). On every change, the app saves a trimmed copy of the schedule to IndexedDB:
-only day, times, code, name and venue, plus upcoming deadlines. The copy is capped well under
-64 KB and is fully replaced on each save, so deleted items vanish at once. The service worker
-serves it at `/widget/data.json` (offline) and draws the Windows 11 widget declared in
-`manifest.webmanifest`. Phones can't host web-app widgets, so they get an icon badge and
-long-press shortcuts instead. Regenerate the picker image with
-`node scripts/make-widget-screenshot.mjs`.
+Installed copies show a badge on the app icon with the number of classes in progress or still
+to come today (where the device supports badges), and offer "Add a class" and "Deadlines"
+shortcuts on a long press or right-click. The badge updates while the app is open.
 
 ## Known limitation
 

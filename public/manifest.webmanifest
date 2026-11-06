@@ -26,21 +26,5 @@
       "url": "/?tab=deadlines",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
-  ],
-  "widgets": [
-    {
-      "name": "Next class",
-      "short_name": "Next class",
-      "description": "Your current or next class, what comes after it, and your next deadline.",
-      "tag": "classflow-next",
-      "template": "classflow-next",
-      "ms_ac_template": "/widget/template.json",
-      "data": "/widget/data.json",
-      "type": "application/json",
-      "auth": false,
-      "update": 900,
-      "screenshots": [{ "src": "/widget/screenshot.png", "sizes": "600x400", "label": "ClassFlow next-class widget" }],
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    }
   ]
 }

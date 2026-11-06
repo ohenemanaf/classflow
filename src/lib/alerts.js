@@ -67,9 +67,8 @@ export function registerServiceWorker() {
   navigator.serviceWorker
     .register('/sw.js')
     .then(() => navigator.serviceWorker.ready)
-    // Keeps the home-screen widget's "next class" current. Only installed apps in Chromium
-    // browsers get this, and the browser decides the real interval, so failures are expected.
-    .then((registration) => registration.periodicSync?.register('classflow-next', { minInterval: 15 * 60 * 1000 }))
+    // Earlier versions asked for background refreshes for a widget that no longer exists.
+    .then((registration) => registration.periodicSync?.unregister('classflow-next'))
     .catch(() => {});
 }
 

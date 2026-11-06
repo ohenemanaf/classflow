@@ -44,7 +44,7 @@ const seedScript = ([p, c, d]) => {
 
 const browser = await chromium.launch({ channel: 'chrome' });
 
-async function open({ colorScheme = 'light', seed = true, url = BASE, permissions } = {}) {
+async function open({ colorScheme = 'light', seed = true, url = BASE, permissions, reducedMotion } = {}) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
@@ -52,6 +52,7 @@ async function open({ colorScheme = 'light', seed = true, url = BASE, permission
     hasTouch: true,
     colorScheme,
     permissions,
+    reducedMotion,
     // Requests a service worker handles can skip the stubs below, and the stub is what stops
     // this script sending real feedback. The offline check further down uses its own context.
     serviceWorkers: 'block',
@@ -107,7 +108,7 @@ const visible = async (locator, timeout = 3000) => {
   check('Classes tab is selected first', (await page.getByRole('tab', { name: 'Classes' }).getAttribute('aria-selected')) === 'true');
   const hero = page.getByRole('region', { name: 'Current class' });
   check('hero shows the class in progress', await hero.getByText('Now', { exact: true }).isVisible());
-  check('hero counts down timer-style', await hero.getByText('1:12:48').isVisible());
+  check('hero counts down timer-style', (await hero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 1:12:48');
   check('week list starts with today', await page.getByRole('heading', { name: 'Today', exact: true }).isVisible());
   const current = page.getByRole('button', { name: 'Edit Network Security Fundamentals' });
   check('current session is highlighted', (await current.getAttribute('aria-current')) === 'time');
@@ -314,19 +315,7 @@ const visible = async (locator, timeout = 3000) => {
   await page.context().close();
 }
 
-// Widget preview, home-screen shortcuts and the free-day card.
-{
-  const page = await open();
-  await page.getByRole('button', { name: 'More' }).click();
-  await page.getByRole('button', { name: 'Home screen widget' }).click();
-  const medium = page.getByRole('figure', { name: 'Medium widget preview' });
-  check('widget preview shows the class in progress', await visible(medium.getByText('Now, until 12:00')) && (await medium.getByText('Network Security Fundamentals').isVisible()));
-  check('widget preview lists what comes next', await medium.getByText('Discrete Mathematics').isVisible());
-  check('widget preview shows the next deadline', await medium.getByText('Due 6 Nov, 09:00: Chapter 1-4 Test').isVisible());
-  check('small widget preview is shown too', await page.getByRole('figure', { name: 'Small widget preview' }).isVisible());
-  await shot(page, 'widget-sheet');
-  await page.context().close();
-}
+// Home-screen shortcuts and the free-day card.
 {
   const page = await open({ url: `${BASE}?action=add-class` });
   check('"Add a class" shortcut opens the new class form', await visible(page.getByRole('heading', { name: 'New Class' })));
@@ -408,6 +397,92 @@ const visible = async (locator, timeout = 3000) => {
   check('preview edits are gone afterwards', (await page.getByRole('heading', { name: 'Preview Only Class' }).count()) === 0);
   check('real timetable is still identical', (await page.evaluate(() => localStorage.getItem('gctu_timetable'))) === real);
   check('banner is gone', (await page.getByRole('status', { name: 'Preview mode' }).count()) === 0);
+  await page.context().close();
+}
+
+// App icon badge, and cleanup of the old widget storage.
+{
+  const page = await open();
+  await page.addInitScript(() => {
+    window.__badges = [];
+    navigator.setAppBadge = (n) => (window.__badges.push(n), Promise.resolve());
+    navigator.clearAppBadge = () => (window.__badges.push(0), Promise.resolve());
+  });
+  // Simulate a device that ran the version with the widget.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const open = indexedDB.open('classflow-widget', 1);
+        open.onupgradeneeded = () => open.result.createObjectStore('snapshot');
+        open.onsuccess = () => {
+          open.result.close();
+          resolve();
+        };
+      }),
+  );
+  await page.reload();
+  await page.waitForTimeout(400);
+  const lastBadge = () => page.evaluate(() => window.__badges.at(-1));
+  check('app icon badge shows the 3 classes left today', (await lastBadge()) === 3);
+  const databases = await page.evaluate(() => indexedDB.databases().then((list) => list.map((d) => d.name)));
+  check('old widget storage is deleted', !databases.includes('classflow-widget'));
+
+  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('switch', { name: 'Preview with sample data' }).click();
+  await page.waitForTimeout(300);
+  check('badge ignores the preview', (await lastBadge()) === 3);
+  await page.getByRole('button', { name: 'Exit preview' }).click();
+
+  await page.clock.setFixedTime(new Date('2026-11-05T18:00:00'));
+  await page.waitForTimeout(1200);
+  await page.clock.runFor(1500);
+  check('badge clears once the day’s classes are over', (await lastBadge()) === 0);
+  await page.context().close();
+}
+
+// Rolling digits, tab title, and the end-of-day celebration.
+{
+  const page = await open();
+  const hero = page.getByRole('region', { name: 'Current class' });
+  const lastStrip = hero.locator('.roll-strip').last();
+  const before = await lastStrip.evaluate((el) => el.style.transform);
+  await page.clock.runFor(1000);
+  await page.waitForTimeout(100);
+  const after = await lastStrip.evaluate((el) => el.style.transform);
+  check('countdown digits roll to the next value', before === 'translateY(-80%)' && after === 'translateY(-70%)');
+  check('countdown keeps its readable value', (await hero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 1:12:47');
+  check('tab title shows the time left in class', (await page.title()) === '1h 12m left: Network Security Fundamentals');
+
+  await page.getByRole('tab', { name: 'Deadlines' }).click();
+  check('deadline countdown uses rolling digits', (await page.getByRole('region', { name: 'Next deadline' }).locator('.roll-strip').count()) >= 6);
+  await page.getByRole('tab', { name: 'Classes' }).click();
+
+  // The last class ends at 17:00.
+  await page.clock.setFixedTime(new Date('2026-11-05T16:59:58'));
+  await page.reload();
+  check('tab title counts down to the next class', /^Database Systems in|left: Database Systems$/.test(await page.title()));
+  check('no celebration before the day is done', (await page.locator('[data-confetti]').count()) === 0);
+  await page.clock.setFixedTime(new Date('2026-11-05T17:00:02'));
+  await page.waitForTimeout(1200);
+  await page.clock.runFor(1500);
+  check('confetti bursts when the last class ends', await visible(page.locator('[data-confetti]')));
+  check('a message marks the end of the day', await page.getByText('That was your last class. Nice work.').isVisible());
+  check('tab title returns to the app name', (await page.title()) === 'ClassFlow | Smart Schedule');
+  await shot(page, 'celebration');
+
+  await page.reload();
+  await page.waitForTimeout(500);
+  check('celebration happens only once a day', (await page.locator('[data-confetti]').count()) === 0);
+  await page.getByRole('button', { name: 'Celebrate' }).click();
+  check('tapping the tick replays the confetti', await visible(page.locator('[data-confetti]')));
+  await page.context().close();
+}
+{
+  const page = await open({ reducedMotion: 'reduce' });
+  await page.clock.setFixedTime(new Date('2026-11-05T18:00:00'));
+  await page.reload();
+  check('reduced motion: still says the day is done', await visible(page.getByText('That was your last class. Nice work.')));
+  check('reduced motion: no confetti', (await page.locator('[data-confetti]').count()) === 0);
   await page.context().close();
 }
 
@@ -512,12 +587,8 @@ const visible = async (locator, timeout = 3000) => {
 
   const manifest = await page.evaluate(() => fetch('/manifest.webmanifest').then((r) => r.json()));
   check('install manifest has a 512px icon', manifest.icons.some((i) => i.sizes === '512x512'));
-  check('manifest declares the Windows widget', manifest.widgets?.[0]?.tag === 'classflow-next' && manifest.widgets[0].data === '/widget/data.json');
   check('manifest declares home-screen shortcuts', manifest.shortcuts?.length === 2);
-  const template = await page.evaluate(() => fetch('/widget/template.json').then((r) => r.json()));
-  check('widget template is served', template.type === 'AdaptiveCard');
-  const screenshot = await page.evaluate(() => fetch('/widget/screenshot.png').then((r) => r.ok));
-  check('widget picker screenshot is served', screenshot);
+  check('manifest no longer declares a widget', !manifest.widgets);
 
   await context.setOffline(true);
   await page.reload();
@@ -544,39 +615,6 @@ const visible = async (locator, timeout = 3000) => {
   await page.reload();
   check('offline: added class survives a reload', await visible(page.getByRole('heading', { name: 'Offline Studies' })));
 
-  const readWidgetCopy = () =>
-    page.evaluate(
-      () =>
-        new Promise((resolve, reject) => {
-          const open = indexedDB.open('classflow-widget');
-          open.onerror = () => reject(open.error);
-          open.onsuccess = () => {
-            const store = open.result.transaction('snapshot').objectStore('snapshot');
-            const all = store.getAll();
-            all.onsuccess = () => {
-              resolve({ records: all.result.length, json: JSON.stringify(all.result) });
-              open.result.close();
-            };
-          };
-        }),
-    );
-  await page.waitForTimeout(300);
-  let copy = await readWidgetCopy();
-  check('offline: widget copy in IndexedDB includes the new class', copy.json.includes('OFF 101'));
-  check('widget copy holds no lecturer names', !copy.json.includes('Shaibu') && !copy.json.includes('Dr. Nana'));
-  check('widget copy is tiny', copy.json.length < 4096);
-  const endpoint = await page.evaluate(async () => {
-    const r = await fetch('/widget/data.json');
-    return { ok: r.ok, type: r.headers.get('content-type'), body: await r.json() };
-  });
-  check('offline: widget data endpoint answers from the service worker', endpoint.ok && endpoint.type === 'application/json' && typeof endpoint.body.title === 'string' && endpoint.body.title.length > 0);
-
-  await page.getByRole('button', { name: 'Edit Offline Studies' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete class' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete class' }).click();
-  await page.waitForTimeout(300);
-  copy = await readWidgetCopy();
-  check('offline: deleting a class purges it from the widget copy at once', !copy.json.includes('OFF 101') && copy.records === 1);
 
   await page.getByRole('button', { name: 'More' }).click();
   await page.getByRole('button', { name: 'Share schedule' }).click();

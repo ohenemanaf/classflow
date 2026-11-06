@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { CalendarPlus, Compass, Eye, LayoutGrid, MessageSquare, Share, Trash2 } from 'lucide-react';
+import { CalendarPlus, Compass, Eye, MessageSquare, Share, Trash2 } from 'lucide-react';
 import Sheet from './Sheet.jsx';
 import { ActionRow, Group, SwitchRow, TextRow } from './ui.jsx';
 
@@ -9,7 +9,6 @@ export default function MoreSheet({
   onSaveProfile,
   onShare,
   onExportCalendar,
-  onWidget,
   previewing,
   onTogglePreview,
   onReplayTour,
@@ -50,7 +49,6 @@ export default function MoreSheet({
         </Group>
         <Group footer="In-app alarms ring only while ClassFlow is open. Add your schedule to your calendar to get reminders even when it's closed or you're offline.">
           <ActionRow icon={CalendarPlus} label="Add to calendar" onClick={onExportCalendar} />
-          <ActionRow icon={LayoutGrid} label="Home screen widget" onClick={onWidget} />
         </Group>
         <Group footer="Works offline. Your timetable is saved only on this device.">
           <ActionRow icon={Share} label="Share schedule" onClick={onShare} />
