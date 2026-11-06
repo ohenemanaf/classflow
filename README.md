@@ -1,5 +1,7 @@
 # ClassFlow
 
+**Live app:** https://smartclassflow.vercel.app
+
 A mobile web app for students: class timetable, live countdowns, deadline tracking, and
 timetable sharing by link or QR code. It has no backend. Data lives in the browser's `localStorage`.
 
