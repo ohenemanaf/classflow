@@ -466,6 +466,8 @@ const visible = async (locator, timeout = 3000) => {
   check('countdown digits roll to the next value', before === 'translateY(-80%)' && after === 'translateY(-70%)');
   check('countdown keeps its readable value', (await hero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 1:12:47');
   check('tab title shows the time left in class', (await page.title()) === '1h 12m left: Network Security Fundamentals');
+  check('countdown is split into hours, min and sec boxes', (await hero.getByRole('timer').locator('.text-secondary').allInnerTexts()).join(' ') === 'hour min sec');
+  check('progress bar shows start, end and how much is done', await hero.getByText('10:00', { exact: true }).isVisible() && await hero.getByText('12:00', { exact: true }).isVisible() && await hero.getByText('39% done').isVisible());
 
   await page.getByRole('tab', { name: 'Deadlines' }).click();
   check('deadline countdown uses rolling digits', (await page.getByRole('region', { name: 'Next deadline' }).locator('.roll-strip').count()) >= 6);
@@ -475,6 +477,9 @@ const visible = async (locator, timeout = 3000) => {
   await page.clock.setFixedTime(new Date('2026-11-05T16:59:58'));
   await page.reload();
   check('tab title counts down to the next class', /^Database Systems in|left: Database Systems$/.test(await page.title()));
+  const lastHero = page.getByRole('region', { name: 'Current class' });
+  check('under an hour the hours box is dropped', (await lastHero.getByRole('timer').locator('.text-secondary').allInnerTexts()).join(' ') === 'min sec' && (await lastHero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 0:02');
+  await shot(page, 'hero-under-hour');
   check('no celebration before the day is done', (await page.locator('[data-confetti]').count()) === 0);
   await page.clock.setFixedTime(new Date('2026-11-05T17:00:02'));
   await page.waitForTimeout(1200);
