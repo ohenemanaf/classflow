@@ -8,15 +8,16 @@ import {
   toneFor,
   weekdayName,
 } from '../lib/schedule.js';
-import RollingNumber from './RollingNumber.jsx';
+import Unit from './CountdownUnit.jsx';
 import { Button } from './ui.jsx';
 
-/** Timer-style countdown, like the iOS Clock app: 1:12:48, or 4:05 under an hour. */
+const two = (n) => String(n).padStart(2, '0');
+
+/** Timer-style countdown for screen readers: 1:12:48, or 4:05 under an hour. */
 function clock(totalSeconds) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
-  const two = (n) => String(n).padStart(2, '0');
   return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
 }
 
@@ -25,6 +26,7 @@ function Hero({ classes, now, onCelebrate }) {
 
   if (status.class) {
     const ongoing = status.type === 'ongoing';
+    const hours = Math.floor(status.secondsLeft / 3600);
     return (
       <section aria-label="Current class" data-tour="countdown" className="glass lift relative overflow-hidden rounded-[2rem] p-5">
         <BookOpen
@@ -41,13 +43,16 @@ function Hero({ classes, now, onCelebrate }) {
           <span className={`size-1.5 rounded-full bg-current ${ongoing ? 'animate-pulse' : ''}`} />
           {ongoing ? 'Now' : 'Next'}
         </span>
-        <p
-          className="tabular mt-3 text-[3.75rem] leading-none font-bold tracking-[-0.04em]"
+        <div
+          className="mt-4 flex gap-1.5"
           role="timer"
           aria-label={`${ongoing ? 'Time remaining' : 'Starts in'} ${clock(status.secondsLeft)}`}
         >
-          <RollingNumber value={clock(status.secondsLeft)} />
-        </p>
+          {/* Under an hour the empty hours box is dropped, and min and sec grow to fill the space. */}
+          {hours > 0 && <Unit value={two(hours)} label={hours === 1 ? 'hour' : 'hours'} />}
+          <Unit value={two(Math.floor((status.secondsLeft % 3600) / 60))} label="min" large={hours === 0} />
+          <Unit value={two(status.secondsLeft % 60)} label="sec" large={hours === 0} />
+        </div>
         {ongoing && (
           <div
             role="progressbar"
@@ -61,14 +66,24 @@ function Hero({ classes, now, onCelebrate }) {
             />
           </div>
         )}
+        {ongoing && (
+          <div className="tabular mt-1.5 flex justify-between text-[0.8125rem] text-secondary">
+            <span>{status.class.startTime}</span>
+            <span className="font-semibold text-live">{Math.floor(status.progress)}% done</span>
+            <span>{status.class.endTime}</span>
+          </div>
+        )}
         <h2 className="relative mt-4 line-clamp-2 text-[1.25rem] leading-snug font-bold tracking-[-0.02em]">
           {status.class.courseName}
         </h2>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.9375rem] text-secondary">
-          <span className="tabular flex items-center gap-1.5">
-            <Clock size={15} />
-            {status.class.startTime}–{status.class.endTime}
-          </span>
+          {/* While a class runs, its times sit on the progress bar instead. */}
+          {!ongoing && (
+            <span className="tabular flex items-center gap-1.5">
+              <Clock size={15} />
+              {status.class.startTime}–{status.class.endTime}
+            </span>
+          )}
           <span className="flex min-w-0 items-center gap-1.5">
             <MapPin size={15} className="shrink-0" />
             <span className="truncate">{status.class.venue}</span>
@@ -121,21 +136,21 @@ function Hero({ classes, now, onCelebrate }) {
   );
 }
 
-/** Start over end time, laid out like a deadline's month over its day. */
+/** Start over end time in one box that stretches to the card's height, so it always fills the space. */
 function TimeBox({ start, end, ongoing }) {
   return (
     <div
-      className={`flex w-14 shrink-0 flex-col items-center self-start rounded-xl py-1.5 ${
-        ongoing ? 'bg-live-soft text-live' : 'bg-tone-chip text-tone-ink'
+      role="group"
+      aria-label={`${start} to ${end}`}
+      className={`flex w-16 shrink-0 flex-col items-center justify-center gap-1 self-stretch rounded-xl bg-white/55 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${
+        ongoing ? 'text-live' : 'text-tone-ink'
       }`}
     >
-      <span className="sr-only">
-        {start} to {end}
-      </span>
-      <span aria-hidden="true" className="tabular text-[1.0625rem] leading-tight font-bold">
+      <span aria-hidden="true" className="tabular text-[1.0625rem] leading-none font-bold">
         {start}
       </span>
-      <span aria-hidden="true" className="tabular text-[0.75rem] font-semibold opacity-75">
+      <span aria-hidden="true" className="h-px w-6 bg-current opacity-25" />
+      <span aria-hidden="true" className="tabular text-[0.8125rem] leading-none font-semibold opacity-75">
         {end}
       </span>
     </div>
