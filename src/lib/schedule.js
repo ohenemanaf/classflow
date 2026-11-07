@@ -132,6 +132,12 @@ export function localDateString(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** Moves a YYYY-MM-DD date by whole days, in the device's own calendar. */
+export function shiftDate(dateString, days) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return localDateString(new Date(year, month - 1, day + days));
+}
+
 /** A stable colour for a course, so it looks the same on every day it appears. */
 export function toneFor(courseCode = '') {
   const code = courseCode.trim().toUpperCase();

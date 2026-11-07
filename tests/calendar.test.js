@@ -99,6 +99,38 @@ describe('calendar file', () => {
     expect(count).toBe(1);
   });
 
+  it('stops classes repeating after the semester ends', () => {
+    const semester = { start: '2026-08-10', end: '2026-11-10' };
+    const { text } = buildCalendar({ classes: [cls()], deadlines: [], now: NOW, semester });
+    const [event] = parse(text);
+    expect(text).toContain('RRULE:FREQ=WEEKLY;UNTIL=20261110T235959\r\n');
+    const rule = event.getFirstPropertyValue('rrule');
+    expect(rule.until.toString()).toBe('2026-11-10T23:59:59');
+    // Mondays from 9 Nov to the end: just 9 Nov falls inside.
+    const dates = [];
+    const it = event.getFirstProperty('rrule') && new ICAL.Event(event).iterator();
+    for (let next = it.next(); next && dates.length < 10; next = it.next()) dates.push(next.toString());
+    expect(dates).toEqual(['2026-11-09T09:00:00']);
+  });
+
+  it('starts at the semester start when that is still ahead', () => {
+    const semester = { start: '2027-01-11', end: '2027-04-09' };
+    const [event] = parse(buildCalendar({ classes: [cls()], deadlines: [], now: NOW, semester }).text);
+    expect(event.getFirstPropertyValue('dtstart').toString()).toBe('2027-01-11T09:00:00');
+  });
+
+  it('leaves out classes that never meet before the semester ends', () => {
+    // Semester ends Saturday 7 Nov; the next Monday class would be 9 Nov.
+    const semester = { start: '2026-08-10', end: '2026-11-07' };
+    const result = buildCalendar({ classes: [cls(), cls({ id: 2, day: 'Friday' })], deadlines: [deadline()], now: NOW, semester });
+    expect(result.classCount).toBe(1);
+    expect(result.deadlineCount).toBe(1);
+    expect(parse(result.text).map((e) => e.getFirstPropertyValue('uid'))).toEqual([
+      'classflow-class-2@classflow.app',
+      'classflow-deadline-7@classflow.app',
+    ]);
+  });
+
   it('keeps the same event IDs on every export', () => {
     const a = buildCalendar({ classes: [cls()], deadlines: [deadline()], now: NOW }).text;
     const b = buildCalendar({ classes: [cls()], deadlines: [deadline()], now: new Date('2026-11-05T20:00') }).text;

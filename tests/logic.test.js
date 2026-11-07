@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_TITLE,
+  shiftDate,
   shortDuration,
   tabTitle,
   findConflict,
@@ -122,6 +123,14 @@ describe('countdown', () => {
     expect(formatDuration(45)).toBe('45s');
     expect(formatDuration(3605)).toBe('1h 0m 5s');
     expect(formatDuration(90061)).toBe('1d 1h 1m 1s');
+  });
+});
+
+describe('moving dates', () => {
+  it('moves across month and year ends', () => {
+    expect(shiftDate('2026-11-19', -7)).toBe('2026-11-12');
+    expect(shiftDate('2026-12-30', 7)).toBe('2027-01-06');
+    expect(shiftDate('2026-03-01', -1)).toBe('2026-02-28');
   });
 });
 

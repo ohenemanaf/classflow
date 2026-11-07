@@ -1,4 +1,4 @@
-import { BookOpen, CircleCheck, Clock, Coffee, MapPin } from 'lucide-react';
+import { BookOpen, CircleCheck, Clock, Coffee, Hash, MapPin, UserRound } from 'lucide-react';
 import {
   classesOn,
   DAYS,
@@ -152,12 +152,24 @@ function ClassCard({ cls, state, isLast, tourTarget, onEdit }) {
           <h3 className="text-[1.0625rem] leading-snug font-bold tracking-[-0.015em]">{cls.courseName}</h3>
           {ongoing && <span className="shrink-0 pt-0.5 text-[0.8125rem] font-bold text-live">Now</span>}
         </div>
-        <div className="relative mt-1 flex gap-3 text-[0.875rem]">
-          <span className="shrink-0 font-semibold text-tone-ink">{cls.courseCode}</span>
+        <div className="relative mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[0.875rem]">
+          <span className="flex shrink-0 items-center gap-1 font-semibold text-tone-ink">
+            <Hash size={14} className="shrink-0" aria-hidden="true" />
+            <span className="sr-only">Course code </span>
+            {cls.courseCode}
+          </span>
           <span className="flex min-w-0 items-center gap-1 text-secondary">
-            <MapPin size={14} className="shrink-0" />
+            <MapPin size={14} className="shrink-0" aria-hidden="true" />
+            <span className="sr-only">Venue </span>
             <span className="truncate">{cls.venue}</span>
           </span>
+          {cls.lecturer && (
+            <span className="flex min-w-0 items-center gap-1 text-secondary">
+              <UserRound size={14} className="shrink-0" aria-hidden="true" />
+              <span className="sr-only">Lecturer </span>
+              <span className="truncate">{cls.lecturer}</span>
+            </span>
+          )}
         </div>
       </button>
     </li>

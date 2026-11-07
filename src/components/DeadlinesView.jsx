@@ -1,4 +1,4 @@
-import { ChevronDown, Flag, MapPin, Timer, Trash2 } from 'lucide-react';
+import { ChevronDown, Flag, MapPin, Pencil, Timer, Trash2 } from 'lucide-react';
 import { deadlineDate, getCountdown, sortDeadlines } from '../lib/schedule.js';
 import RollingNumber from './RollingNumber.jsx';
 import { Button } from './ui.jsx';
@@ -16,7 +16,7 @@ function Unit({ value, label }) {
   );
 }
 
-function NextDeadline({ deadline, now }) {
+function NextDeadline({ deadline, now, onEdit }) {
   const left = getCountdown(deadline, now);
   const when = deadlineDate(deadline).toLocaleString('en-GB', {
     weekday: 'short',
@@ -26,14 +26,27 @@ function NextDeadline({ deadline, now }) {
     minute: '2-digit',
   });
   return (
-    <section aria-label="Next deadline" className="glass lift rounded-[2rem] p-5">
-      <span
-        className={`inline-block rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold ${
-          left.isUrgent ? 'bg-destructive-soft text-destructive' : 'bg-tint-soft text-tint'
-        }`}
+    // The whole card opens the deadline, so the most urgent one can be moved or deleted.
+    <section aria-label="Next deadline" className="glass lift rounded-[2rem]">
+      <button
+        type="button"
+        onClick={() => onEdit(deadline)}
+        aria-label={`Edit ${deadline.title}, ${left.text} remaining`}
+        className="block w-full rounded-[2rem] p-5 text-left"
       >
-        {left.isUrgent ? 'Due within a day' : 'Next'}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={`inline-block rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold ${
+            left.isUrgent ? 'bg-destructive-soft text-destructive' : 'bg-tint-soft text-tint'
+          }`}
+        >
+          {left.isUrgent ? 'Due within a day' : 'Next'}
+        </span>
+        <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-tint">
+          <Pencil size={14} aria-hidden="true" />
+          Edit
+        </span>
+      </div>
       <h2 className="mt-3 line-clamp-2 text-[1.5rem] leading-tight font-bold tracking-[-0.025em]">
         {deadline.title}
       </h2>
@@ -46,6 +59,7 @@ function NextDeadline({ deadline, now }) {
         <Unit value={two(left.minutes)} label="min" />
         <Unit value={two(left.seconds)} label="sec" />
       </div>
+      </button>
     </section>
   );
 }
@@ -112,7 +126,7 @@ export default function DeadlinesView({ deadlines, now, onAdd, onEdit, onDelete 
   return (
     <main className="space-y-6 px-4">
       {active[0] ? (
-        <NextDeadline deadline={active[0]} now={now} />
+        <NextDeadline deadline={active[0]} now={now} onEdit={onEdit} />
       ) : (
         <section className="glass rounded-[2rem] p-5">
           <h2 className="text-[1.75rem] font-bold tracking-[-0.025em]">All caught up</h2>

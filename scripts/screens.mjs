@@ -108,11 +108,13 @@ const visible = async (locator, timeout = 3000) => {
   check('Classes tab is selected first', (await page.getByRole('tab', { name: 'Classes' }).getAttribute('aria-selected')) === 'true');
   const hero = page.getByRole('region', { name: 'Current class' });
   check('hero shows the class in progress', await hero.getByText('Now', { exact: true }).isVisible());
-  check('hero counts down timer-style', (await hero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 1:12:48');
+  check('hero counts down timer-style', /^Time remaining 1:12:4[0-8]$/.test(await hero.getByRole('timer').getAttribute('aria-label'))); // the test clock runs while the page loads
   check('week list starts with today', await page.getByRole('heading', { name: 'Today', exact: true }).isVisible());
   const current = page.getByRole('button', { name: 'Edit Network Security Fundamentals' });
   check('current session is highlighted', (await current.getAttribute('aria-current')) === 'time');
   check('only one session is highlighted', (await page.locator('[aria-current="time"]').count()) === 1);
+  check('class cards show the lecturer', await current.getByText('Dr. Efua Owusu').isVisible());
+  check('class cards show the course code with an icon', (await current.locator('svg.lucide-hash').count()) === 1 && (await current.locator('svg.lucide-user-round').count()) === 1);
   check('progress bar sits on the countdown card', (await hero.getByRole('progressbar').count()) === 1);
   check('class cards have no progress bar', (await current.getByRole('progressbar').count()) === 0 && (await page.getByRole('progressbar').count()) === 1);
   check('class cards carry the open-book mark', (await current.locator('svg.lucide-book-open').count()) === 1);
@@ -244,14 +246,26 @@ const visible = async (locator, timeout = 3000) => {
   const page = await open();
   await page.getByRole('button', { name: 'More' }).click();
   await shot(page, 'settings-calendar');
-  const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Add to calendar' }).click();
+  const sheet = page.getByRole('dialog');
+  check('calendar asks for the semester first', await visible(sheet.getByLabel('Semester ends')));
+  check('semester defaults to today', (await sheet.getByLabel('Semester starts').inputValue()) === '2026-11-05');
+  check('removal steps are explained', await sheet.getByRole('heading', { name: 'Removing it later' }).isVisible());
+  await sheet.getByLabel('Semester ends').fill('2026-11-01');
+  check('an end before the start is refused', await sheet.getByRole('button', { name: 'Save calendar file' }).isDisabled());
+  await sheet.getByLabel('Semester ends').fill('2027-02-04');
+  check('semester length is spelled out', await sheet.getByText(/repeat every week for 13 weeks and stop after Thu, 4 February 2027/).isVisible());
+  await shot(page, 'calendar-sheet');
+  const downloading = page.waitForEvent('download');
+  await sheet.getByRole('button', { name: 'Save calendar file' }).click();
   const download = await downloading;
   const { readFileSync } = await import('node:fs');
   const ics = readFileSync(await download.path(), 'utf8');
   check('calendar file has the right name', download.suggestedFilename() === 'classflow-schedule.ics');
   check('calendar file holds 6 classes and 3 upcoming deadlines', (ics.match(/BEGIN:VEVENT/g) || []).length === 9);
   check('calendar classes repeat weekly with reminders', ics.includes('RRULE:FREQ=WEEKLY') && ics.includes('TRIGGER:-PT15M'));
+  check('calendar classes stop at the end of the semester', (ics.match(/RRULE:FREQ=WEEKLY;UNTIL=20270204T235959/g) || []).length === 6);
+  check('semester is remembered', (await page.evaluate(() => JSON.parse(localStorage.getItem('classflow_semester')).end)) === '2027-02-04');
   check('calendar export confirms with a count', await visible(page.getByText(/add 9 events with reminders/)));
   check('settings closes after export', (await page.getByRole('dialog').count()) === 0);
   await page.context().close();
@@ -483,6 +497,32 @@ const visible = async (locator, timeout = 3000) => {
   await page.reload();
   check('reduced motion: still says the day is done', await visible(page.getByText('That was your last class. Nice work.')));
   check('reduced motion: no confetti', (await page.locator('[data-confetti]').count()) === 0);
+  await page.context().close();
+}
+
+// The next deadline can be opened, moved and deleted.
+{
+  const page = await open();
+  await page.getByRole('tab', { name: 'Deadlines' }).click();
+  await page.getByRole('button', { name: /^Edit Chapter 1-4 Test/ }).click();
+  const form = page.getByRole('dialog');
+  check('next deadline card opens for editing', await visible(page.getByRole('heading', { name: 'Edit Deadline' })));
+  await form.getByRole('button', { name: '1 week later' }).click();
+  check('"1 week later" moves the date', (await form.getByLabel('Date').inputValue()) === '2026-11-13');
+  await form.getByRole('button', { name: '1 day earlier' }).click();
+  check('"1 day earlier" moves the date', (await form.getByLabel('Date').inputValue()) === '2026-11-12');
+  check('the new due date is spelled out', await form.getByText(/Due Thursday 12 November/).isVisible());
+  await shot(page, 'deadline-move');
+  await form.getByRole('button', { name: 'Save', exact: true }).click();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('gctu_exams')).find((d) => d.id === 1).date);
+  check('moved deadline is saved', stored === '2026-11-12');
+  check('countdowns re-sort after the move', await visible(page.getByRole('region', { name: 'Next deadline' }).getByText('Chapter 1-4 Test')) && (await page.getByText('Due within a day').count()) === 0);
+
+  await page.getByRole('button', { name: /^Edit Chapter 1-4 Test/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete deadline' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete deadline' }).click();
+  check('next deadline can be deleted', (await page.getByText('Chapter 1-4 Test').count()) === 0);
+  check('the following deadline moves up', await visible(page.getByRole('region', { name: 'Next deadline' }).getByText('Group Project Report')));
   await page.context().close();
 }
 
