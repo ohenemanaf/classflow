@@ -33,6 +33,7 @@ import ImportDialog from './components/ImportDialog.jsx';
 import MoreSheet from './components/MoreSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import PreviewBanner from './components/PreviewBanner.jsx';
+import CalendarSheet from './components/CalendarSheet.jsx';
 import Ambient from './components/Ambient.jsx';
 import CoachMarks from './components/CoachMarks.jsx';
 import Segmented from './components/Segmented.jsx';
@@ -43,6 +44,15 @@ const initialAlarms = () => {
   const stored = localStorage.getItem(KEYS.alarms);
   if (stored) return stored === 'on';
   return notificationsSupported() && Notification.permission === 'granted';
+};
+
+/** The semester last used for calendar export, or today plus about three months. */
+const savedSemester = () => {
+  const saved = readJson(KEYS.semester, null);
+  if (saved?.start && saved?.end) return saved;
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate());
+  return { start: localDateString(today), end: localDateString(end) };
 };
 
 const clearSyncParam = () =>
@@ -348,11 +358,20 @@ export default function App() {
   };
 
   // The phone's calendar can alert offline and with ClassFlow closed, which a web page can't.
-  const exportCalendar = () => {
+  const openCalendar = () => {
     if (blockedInPreview()) return;
-    const { text, count } = buildCalendar({ classes, deadlines, now: new Date() });
-    if (count === 0) {
+    if (classes.length === 0 && deadlines.length === 0) {
       showToast('Nothing to add yet', 'Add a class or deadline first.');
+      return;
+    }
+    setSheet({ kind: 'calendar' });
+  };
+
+  const exportCalendar = (semester) => {
+    writeJson(KEYS.semester, semester);
+    const { text, count } = buildCalendar({ classes, deadlines, now: new Date(), semester });
+    if (count === 0) {
+      showToast('Nothing to add', 'None of your classes meet before that semester ends.');
       return;
     }
     const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
@@ -465,6 +484,9 @@ export default function App() {
           onClose={closeSheet}
         />
       )}
+      {sheet?.kind === 'calendar' && (
+        <CalendarSheet semester={savedSemester()} onSave={exportCalendar} onClose={closeSheet} />
+      )}
       {sheet?.kind === 'share' && (
         <ShareSheet profile={profile} classes={classes} onToast={showToast} onClose={closeSheet} />
       )}
@@ -477,7 +499,7 @@ export default function App() {
           hasClasses={classes.length > 0}
           onSaveProfile={saveProfile}
           onShare={openShare}
-          onExportCalendar={exportCalendar}
+          onExportCalendar={openCalendar}
           previewing={Boolean(preview)}
           onTogglePreview={() => (preview ? (closeSheet(), endPreview()) : startPreview())}
           onReplayTour={() => {

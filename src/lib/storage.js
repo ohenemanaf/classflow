@@ -9,6 +9,7 @@ export const KEYS = {
   alarms: 'classflow_alarms',
   tourDone: 'classflow_tour_done',
   celebrated: 'classflow_celebrated',
+  semester: 'classflow_semester',
 };
 
 export function readJson(key, fallback) {

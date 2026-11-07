@@ -58,8 +58,15 @@ const alarm = (trigger, description) => [
  * that have already passed are left out. UIDs are stable, so a calendar that supports
  * updates can recognise an event it has seen before.
  */
-export function buildCalendar({ classes, deadlines, now }) {
+export function buildCalendar({ classes, deadlines, now, semester }) {
   const stamp = utcStamp(now);
+  // With a semester, classes start no earlier than its first day and stop repeating after
+  // its last day. UNTIL is a local time because DTSTART is (RFC 5545 §3.3.10).
+  const semesterStart = semester && new Date(`${semester.start}T00:00:00`);
+  const semesterEnd = semester && new Date(`${semester.end}T23:59:59`);
+  const from = semesterStart && semesterStart > now ? semesterStart : now;
+  const repeat = semester ? `RRULE:FREQ=WEEKLY;UNTIL=${semester.end.replaceAll('-', '')}T235959` : 'RRULE:FREQ=WEEKLY';
+  let classCount = 0;
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -70,15 +77,17 @@ export function buildCalendar({ classes, deadlines, now }) {
   ];
 
   for (const cls of classes) {
-    const start = nextOccurrence(cls.day, cls.startTime, now);
+    const start = nextOccurrence(cls.day, cls.startTime, from);
     const end = nextOccurrence(cls.day, cls.endTime, start);
+    if (semesterEnd && start > semesterEnd) continue; // never meets before the semester ends
+    classCount += 1;
     lines.push(
       'BEGIN:VEVENT',
       `UID:classflow-class-${cls.id}@classflow.app`,
       `DTSTAMP:${stamp}`,
       `DTSTART:${localStamp(start)}`,
       `DTEND:${localStamp(end)}`,
-      'RRULE:FREQ=WEEKLY',
+      repeat,
       `SUMMARY:${escapeText(`${cls.courseName} (${cls.courseCode})`)}`,
       `LOCATION:${escapeText(cls.venue)}`,
       `DESCRIPTION:${escapeText(cls.lecturer ? `Lecturer: ${cls.lecturer}` : '')}`,
@@ -108,6 +117,8 @@ export function buildCalendar({ classes, deadlines, now }) {
   lines.push('END:VCALENDAR');
   return {
     text: `${lines.map(fold).join('\r\n')}\r\n`,
-    count: classes.length + upcoming.length,
+    count: classCount + upcoming.length,
+    classCount,
+    deadlineCount: upcoming.length,
   };
 }
