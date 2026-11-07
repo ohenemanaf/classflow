@@ -121,22 +121,38 @@ function Hero({ classes, now, onCelebrate }) {
   );
 }
 
-function ClassCard({ cls, state, isLast, tourTarget, onEdit }) {
+/** Start over end time, laid out like a deadline's month over its day. */
+function TimeBox({ start, end, ongoing }) {
+  return (
+    <div
+      className={`flex w-14 shrink-0 flex-col items-center self-start rounded-xl py-1.5 ${
+        ongoing ? 'bg-live-soft text-live' : 'bg-tone-chip text-tone-ink'
+      }`}
+    >
+      <span className="sr-only">
+        {start} to {end}
+      </span>
+      <span aria-hidden="true" className="tabular text-[1.0625rem] leading-tight font-bold">
+        {start}
+      </span>
+      <span aria-hidden="true" className="tabular text-[0.75rem] font-semibold opacity-75">
+        {end}
+      </span>
+    </div>
+  );
+}
+
+function ClassCard({ cls, state, tourTarget, onEdit }) {
   const ongoing = state === 'ongoing';
   return (
-    <li className={`flex gap-3 transition-opacity duration-500 ${state === 'past' ? 'opacity-45' : ''}`}>
-      <div className="flex w-11 shrink-0 flex-col items-end pt-4">
-        <span className={`tabular text-[0.9375rem] font-bold ${ongoing ? 'text-live' : ''}`}>{cls.startTime}</span>
-        <span className="tabular text-[0.8125rem] text-secondary">{cls.endTime}</span>
-        {!isLast && <span className="mt-2 mr-2.5 w-px flex-1 bg-separator" />}
-      </div>
+    <li className={`transition-opacity duration-500 ${state === 'past' ? 'opacity-45' : ''}`}>
       <button
         type="button"
         onClick={() => onEdit(cls)}
         aria-label={`Edit ${cls.courseName}`}
         aria-current={ongoing ? 'time' : undefined}
         data-tour={tourTarget ? 'class' : undefined}
-        className={`${toneFor(cls.courseCode)} lift relative mb-2.5 min-w-0 flex-1 overflow-hidden rounded-[1.375rem] border p-4 text-left backdrop-blur-xl ${
+        className={`${toneFor(cls.courseCode)} lift relative mb-2.5 w-full min-w-0 overflow-hidden rounded-[1.375rem] border p-4 text-left backdrop-blur-xl ${
           ongoing
             ? 'border-white bg-white/85 shadow-[0_0_0_2px_rgba(52,199,89,0.4),0_14px_34px_rgba(52,199,89,0.16)]'
             : 'border-white/70 bg-tone-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
@@ -148,28 +164,35 @@ function ClassCard({ cls, state, isLast, tourTarget, onEdit }) {
           strokeWidth={1.25}
           className="book-mark pointer-events-none absolute -right-5 -bottom-8 text-tone-ink opacity-[0.08]"
         />
-        <div className="relative flex items-start justify-between gap-2">
-          <h3 className="text-[1.0625rem] leading-snug font-bold tracking-[-0.015em]">{cls.courseName}</h3>
-          {ongoing && <span className="shrink-0 pt-0.5 text-[0.8125rem] font-bold text-live">Now</span>}
-        </div>
-        <div className="relative mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[0.875rem]">
-          <span className="flex shrink-0 items-center gap-1 font-semibold text-tone-ink">
-            <Hash size={14} className="shrink-0" aria-hidden="true" />
-            <span className="sr-only">Course code </span>
-            {cls.courseCode}
-          </span>
-          <span className="flex min-w-0 items-center gap-1 text-secondary">
-            <MapPin size={14} className="shrink-0" aria-hidden="true" />
-            <span className="sr-only">Venue </span>
-            <span className="truncate">{cls.venue}</span>
-          </span>
-          {cls.lecturer && (
-            <span className="flex min-w-0 items-center gap-1 text-secondary">
-              <UserRound size={14} className="shrink-0" aria-hidden="true" />
-              <span className="sr-only">Lecturer </span>
-              <span className="truncate">{cls.lecturer}</span>
-            </span>
-          )}
+        <div className="relative flex gap-3">
+          <TimeBox start={cls.startTime} end={cls.endTime} ongoing={ongoing} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="min-w-0 text-[1.0625rem] leading-snug font-bold tracking-[-0.015em] hyphens-auto">
+                {cls.courseName}
+              </h3>
+              {ongoing && <span className="shrink-0 pt-0.5 text-[0.8125rem] font-bold text-live">Now</span>}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[0.875rem]">
+              <span className="flex shrink-0 items-center gap-1 font-semibold text-tone-ink">
+                <Hash size={14} className="shrink-0" aria-hidden="true" />
+                <span className="sr-only">Course code </span>
+                {cls.courseCode}
+              </span>
+              <span className="flex min-w-0 items-center gap-1 text-secondary">
+                <MapPin size={14} className="shrink-0" aria-hidden="true" />
+                <span className="sr-only">Venue </span>
+                <span className="truncate">{cls.venue}</span>
+              </span>
+              {cls.lecturer && (
+                <span className="flex min-w-0 items-center gap-1 text-secondary">
+                  <UserRound size={14} className="shrink-0" aria-hidden="true" />
+                  <span className="sr-only">Lecturer </span>
+                  <span className="truncate">{cls.lecturer}</span>
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </button>
     </li>
@@ -229,7 +252,6 @@ export default function ClassesView({ classes, now, onAdd, onSample, onEdit, onC
                 key={cls.id}
                 cls={cls}
                 state={stateOf(cls, offset)}
-                isLast={index === list.length - 1}
                 tourTarget={weekIndex === 0 && index === 0}
                 onEdit={onEdit}
               />
