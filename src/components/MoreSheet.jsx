@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { CalendarPlus, Compass, Eye, MessageSquare, Share, Trash2 } from 'lucide-react';
 import Sheet from './Sheet.jsx';
 import { ActionRow, Group, SwitchRow, TextRow } from './ui.jsx';
+import { analyticsEnabled } from '../lib/analytics.js';
 
 export default function MoreSheet({
   profile,
@@ -50,7 +51,11 @@ export default function MoreSheet({
         <Group footer="In-app alarms ring only while ClassFlow is open. Add your schedule to your calendar to get reminders even when it's closed or you're offline.">
           <ActionRow icon={CalendarPlus} label="Add to calendar" onClick={onExportCalendar} />
         </Group>
-        <Group footer="Works offline. Your timetable is saved only on this device.">
+        <Group
+          footer={`Works offline. Your timetable is saved only on this device.${
+            analyticsEnabled ? " Anonymous usage statistics are collected with Google Analytics. Your name and timetable are never sent." : ""
+          }`}
+        >
           <ActionRow icon={Share} label="Share schedule" onClick={onShare} />
           <ActionRow icon={Compass} label="Replay tour" onClick={onReplayTour} />
           <ActionRow icon={MessageSquare} label="Suggest a feature" onClick={onFeedback} />

@@ -41,6 +41,17 @@ Installed copies show a badge on the app icon with the number of classes in prog
 to come today (where the device supports badges), and offer "Add a class" and "Deadlines"
 shortcuts on a long press or right-click. The badge updates while the app is open.
 
+## Usage statistics (Google Analytics)
+
+Off unless `VITE_GA_MEASUREMENT_ID` (for example `G-ABC123XYZ`) is set when building, in Vercel
+under Settings → Environment Variables. `src/lib/analytics.js` turns off automatic page views and
+sends one visit per launch with a fixed address and title (`/browser` or `/installed-app`),
+because by default Google would record share links (which carry a timetable) and the tab title
+(which names the current class). It also waits until a share link has been handled. In the Google
+Analytics web stream, turn off Enhanced measurement → Page views → "Page changes based on browser
+history events" as well. Running `npm run screens` with the variable set checks every outgoing hit
+for timetable data.
+
 ## Known limitation
 
 Alarms only fire while the app is open. Alerts with the app closed would need web push and a server.

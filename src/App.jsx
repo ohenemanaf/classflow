@@ -6,6 +6,7 @@ import {
   showSystemNotification,
   unlockAudio,
 } from './lib/alerts.js';
+import { countVisit } from './lib/analytics.js';
 import { buildCalendar } from './lib/calendar.js';
 import { buildSampleData } from './lib/sample.js';
 import {
@@ -348,6 +349,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Counted after the share-link and shortcut handling above, so the address is clean.
+  useEffect(() => {
+    countVisit();
+  }, []);
+
   const openShare = () => {
     if (blockedInPreview()) return;
     if (classes.length === 0) {
@@ -393,6 +399,7 @@ export default function App() {
   const finishImport = (accepted) => {
     localStorage.setItem(KEYS.processedSync, incoming.raw);
     clearSyncParam();
+    countVisit(); // the share link is gone from the address now
     if (accepted) {
       setPreview(null);
       setSavedClasses(incoming.timetable.map((c, i) => ({ ...c, id: Date.now() + i })));
