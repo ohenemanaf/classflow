@@ -486,6 +486,8 @@ const visible = async (locator, timeout = 3000) => {
   // The last class ends at 17:00.
   await page.clock.setFixedTime(new Date('2026-11-05T16:59:58'));
   await page.reload();
+  // With analytics on, the title is held as the visit label for a moment while Google starts.
+  await page.waitForFunction(() => !document.title.startsWith('Opened '), null, { timeout: 10000 }).catch(() => {});
   check('tab title counts down to the next class', /^Database Systems in|left: Database Systems$/.test(await page.title()));
   const lastHero = page.getByRole('region', { name: 'Current class' });
   check('under an hour the hours box is dropped', (await lastHero.getByRole('timer').locator('.text-secondary').allInnerTexts()).join(' ') === 'min sec' && (await lastHero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 0:02');
