@@ -6,7 +6,7 @@ import {
   showSystemNotification,
   unlockAudio,
 } from './lib/alerts.js';
-import { countVisit } from './lib/analytics.js';
+import { countVisit, getHeldTitle, subscribeHeldTitle } from './lib/analytics.js';
 import { buildCalendar } from './lib/calendar.js';
 import { buildSampleData } from './lib/sample.js';
 import {
@@ -110,9 +110,12 @@ export default function App() {
   // Browser tab title shows what's on, so desktop users can see it from any tab.
   // Minute-level, so it doesn't flicker every second.
   const pageTitle = profile ? tabTitle(savedClasses, now) : DEFAULT_TITLE;
+  // Analytics briefly holds the title while Google starts, so the class name is never sent.
+  const [heldTitle, setHeldTitle] = useState(getHeldTitle);
+  useEffect(() => subscribeHeldTitle(setHeldTitle), []);
   useEffect(() => {
-    document.title = pageTitle;
-  }, [pageTitle]);
+    document.title = heldTitle || pageTitle;
+  }, [pageTitle, heldTitle]);
 
   // Celebrate once a day when the last class is over, even if the app is opened later.
   const dayType = profile ? getDayStatus(savedClasses, now).type : null;
