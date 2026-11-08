@@ -59,6 +59,7 @@ async function open({ colorScheme = 'light', seed = true, url = BASE, permission
   });
   await context.route(/api\.dicebear\.com/, (r) => r.abort());
   await context.route(/api\.web3forms\.com/, (r) => r.fulfill({ json: { success: true } }));
+  await context.route(/googletagmanager\.com|google-analytics\.com/, (r) => r.abort());
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -209,7 +210,7 @@ const visible = async (locator, timeout = 3000) => {
 // Hover lift, on a device that can actually hover (a laptop with a mouse).
 {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
-  await context.route(/api\.dicebear\.com/, (r) => r.abort());
+  await context.route(/api\.dicebear\.com|googletagmanager\.com|google-analytics\.com/, (r) => r.abort());
   const page = await context.newPage();
   await page.clock.install({ time: NOW });
   await page.addInitScript(seedScript, [profile, classes, deadlines]);
@@ -459,12 +460,21 @@ const visible = async (locator, timeout = 3000) => {
   const page = await open();
   const hero = page.getByRole('region', { name: 'Current class' });
   const lastStrip = hero.locator('.roll-strip').last();
-  const before = await lastStrip.evaluate((el) => el.style.transform);
+  await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 1000));
+  const timer = hero.getByRole('timer');
+  const shown = async () => ({ label: await timer.getAttribute('aria-label'), strip: await lastStrip.evaluate((el) => el.style.transform) });
+  const digitOf = (label) => Number(label.slice(-1));
+  const before = await shown();
   await page.clock.runFor(1000);
-  await page.waitForTimeout(100);
-  const after = await lastStrip.evaluate((el) => el.style.transform);
-  check('countdown digits roll to the next value', before === 'translateY(-80%)' && after === 'translateY(-70%)');
-  check('countdown keeps its readable value', (await hero.getByRole('timer').getAttribute('aria-label')) === 'Time remaining 1:12:47');
+  await page.waitForTimeout(150);
+  const after = await shown();
+  check(
+    'countdown digits roll to the next value',
+    before.strip === `translateY(-${digitOf(before.label) * 10}%)` &&
+      after.strip === `translateY(-${digitOf(after.label) * 10}%)` &&
+      digitOf(after.label) === (digitOf(before.label) + 9) % 10,
+  );
+  check('countdown keeps its readable value', /^Time remaining 1:12:\d\d$/.test(after.label));
   check('tab title shows the time left in class', (await page.title()) === '1h 12m left: Network Security Fundamentals');
   check('countdown is split into hours, min and sec boxes', (await hero.getByRole('timer').locator('.text-secondary').allInnerTexts()).join(' ') === 'hour min sec');
   check('progress bar shows start, end and how much is done', await hero.getByText('10:00', { exact: true }).isVisible() && await hero.getByText('12:00', { exact: true }).isVisible() && await hero.getByText('39% done').isVisible());
@@ -529,6 +539,57 @@ const visible = async (locator, timeout = 3000) => {
   check('next deadline can be deleted', (await page.getByText('Chapter 1-4 Test').count()) === 0);
   check('the following deadline moves up', await visible(page.getByRole('region', { name: 'Next deadline' }).getByText('Group Project Report')));
   await page.context().close();
+}
+
+// Visit counting with Google Analytics. Google's real script loads, but every hit it tries to
+// send is caught here and never leaves the machine, so we can check exactly what it contains.
+{
+  const expectCounting = Boolean(process.env.VITE_GA_MEASUREMENT_ID);
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+  await context.route(/api\.dicebear\.com|api\.web3forms\.com/, (r) => r.abort());
+  const hits = [];
+  await context.route(/google-analytics\.com|analytics\.google\.com/, (r) => {
+    const req = r.request();
+    hits.push(`${req.url()} ${req.postData() || ''}`);
+    return r.fulfill({ status: 204, body: '' });
+  });
+  const tagLoads = [];
+  context.on('request', (req) => {
+    if (req.url().includes('googletagmanager.com/gtag/js')) tagLoads.push(req.url());
+  });
+  const page = await context.newPage();
+  await page.clock.install({ time: NOW }); // mid-class, so the tab title names a course
+  await page.addInitScript(seedScript, [profile, classes, deadlines]);
+  const shareLink = btoa(JSON.stringify({ n: 'Kofi', t: [[3, '10:00', '12:00', 'SECRET 1', 'Room Z', 'Private Course', 'Dr. Hidden']] }));
+  await page.goto(`${BASE}?sync=${shareLink}`);
+  await page.waitForTimeout(1500);
+
+  if (expectCounting) {
+    check('analytics waits while a share link is open', tagLoads.length === 0 && hits.length === 0);
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+    await page.waitForTimeout(3000);
+    check('Google Analytics loads once the link is handled', tagLoads.length === 1);
+    check('tab title still names the class (so the next checks mean something)', (await page.title()).includes('Network Security'));
+    await page.goto('about:blank'); // leaving the page makes Google flush anything queued
+    await page.waitForTimeout(1000);
+    const sent = hits.map((h) => {
+      try {
+        return decodeURIComponent(h.replace(/\+/g, ' '));
+      } catch {
+        return h;
+      }
+    }).join('\n');
+    check('a visit reaches Google Analytics', /en=page_view/.test(sent));
+    check('visit is labelled by how the app was opened', sent.includes('dt=Opened in browser') && /dl=https?:\/\/[^&\s]+\/browser/.test(sent));
+    check(
+      'no timetable, course names or share-link data reach Google',
+      !/sync=|SECRET|Private Course|Hidden|Network Security|Kofi|Mensah|Lab 2/.test(sent),
+    );
+    if (/sync=|SECRET|Private Course|Hidden|Network Security|Kofi|Mensah|Lab 2/.test(sent)) console.log(sent);
+  } else {
+    check('no analytics without a measurement ID', tagLoads.length === 0 && hits.length === 0);
+  }
+  await context.close();
 }
 
 // Alarms toggle on and off, and the choice survives a reload.
@@ -621,7 +682,7 @@ const visible = async (locator, timeout = 3000) => {
 // Offline: one online visit, then everything must work with the network gone.
 {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await context.route(/api\.dicebear\.com|api\.web3forms\.com/, (r) => r.abort());
+  await context.route(/api\.dicebear\.com|api\.web3forms\.com|googletagmanager\.com|google-analytics\.com/, (r) => r.abort());
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
